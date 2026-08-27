@@ -1,0 +1,2 @@
+source /home/jonesp/Github/EProject/EProject/.pio/build/esp32doit-devkit-v1/gdbinit/symbols
+source /home/jonesp/Github/EProject/EProject/.pio/build/esp32doit-devkit-v1/gdbinit/connect
