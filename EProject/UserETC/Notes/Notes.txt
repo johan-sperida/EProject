@@ -1,0 +1,12 @@
+Memory of ESP32 in this project = 4 Mb
+
+
+nvs	Data	0x9000	20 KB	Non-volatile settings stored as key/value pairs
+phy_init	Data	0xE000	4 KB	Wi-Fi/Bluetooth radio calibration data
+factory	App	0x10000	1 MB	Your compiled firmware application
+littlefs	Data	0x110000	512 KB	Filesystem for web files, configuration files, logs, etc.
+
+
+Changes in toe .ini file and menucongfig get saved to sdkconfig file
+
+Can manually add stuff to the file system by building and uploading file system
