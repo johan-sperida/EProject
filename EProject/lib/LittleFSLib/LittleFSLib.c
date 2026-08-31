@@ -6,27 +6,12 @@
  * contents, and query filesystem usage.
  */
 
-#include <stdio.h>
-#include <string.h>
-#include <sys/stat.h>
-#include <dirent.h>
-#include <errno.h>
+#include "LittleFSLib.h"
 
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
+static const char *TAG = "LittleFSLib";
 
-#include "esp_err.h"
-#include "esp_log.h"
-#include "esp_littlefs.h"
 
-static const char *TAG = "littlefs_demo";
-
-/**
- * @brief Mount LittleFS filesystem 
- * 
- * @return esp_err_t ESP_OK on success, otherwise failure code 
- */
-static esp_err_t littlefs_mount(void) 
+esp_err_t LittleFS_mount(void) 
 {
     // Configuration for LittleFS
     esp_vfs_littlefs_conf_t conf = {
@@ -58,23 +43,16 @@ static esp_err_t littlefs_mount(void)
     return ESP_OK;
 }
 
-/**
- * @brief Unmount LittleFS filesystem 
- * 
- */
-static void littlefs_unmount(void)
+
+void LittleFS_unmount(void)
 {
     // Unregister and unmount LittleFS
     esp_vfs_littlefs_unregister("littlefs");
     ESP_LOGI(TAG, "LittleFS unmounted");
 }
 
-/**
- * @brief Ensure a directory exists, create if needed 
- * 
- * @param path Path to directory 
- */
-static void ensure_dir(const char *path)
+
+void LittleFS_ensure_dir(const char *path)
 {
     struct stat st;
     
@@ -96,13 +74,8 @@ static void ensure_dir(const char *path)
     ESP_LOGE(TAG, "mkdir failed for %s: errno=%d (%s)", path, errno, strerror(errno));
 }
 
-/**
- * @brief Write text to a file (overwrites existing content) 
- * 
- * @param path Path to text file to write 
- * @param text Text to write 
- */
-static void write_text_file(const char *path, const char *text)
+
+void LittleFS_write_text_file(const char *path, const char *text)
 {
     // Open file for writing (overwrite)
     FILE *f = fopen(path, "w");
@@ -120,13 +93,8 @@ static void write_text_file(const char *path, const char *text)
     ESP_LOGI(TAG, "Wrote %u bytes to %s", (unsigned)n, path);
 }
 
-/**
- * @brief Append text to a file 
- * 
- * @param path Path to text file to append to 
- * @param text Text to append 
- */
-static void append_text_file(const char *path, const char *text)
+
+void LittleFS_append_text_file(const char *path, const char *text)
 {
     // Open file for appending
     FILE *f = fopen(path, "a");
@@ -144,12 +112,8 @@ static void append_text_file(const char *path, const char *text)
     ESP_LOGI(TAG, "Appended %u bytes to %s", (unsigned)n, path);
 }
 
-/**
- * @brief Read and log contents of a text file 
- * 
- * @param path Path to text file to read 
- */
-static void read_text_file(const char *path)
+
+void LittleFS_read_text_file(const char *path)
 {
     // Open file for reading
     FILE *f = fopen(path, "r");
@@ -172,12 +136,8 @@ static void read_text_file(const char *path)
     ESP_LOGI(TAG, "---- End file ----");
 }
 
-/**
- * @brief List directory contents   
- * 
- * @param dirpath Path to directory to list 
- */
-static void list_dir(const char *dirpath)
+
+void LittleFS_list_dir(const char *dirpath)
 {
     // Open directory
     DIR *dir = opendir(dirpath);
@@ -223,11 +183,8 @@ static void list_dir(const char *dirpath)
     closedir(dir);
 }
 
-/**
- * @brief Show filesystem information
- * 
- */
-static void show_fs_info(void)
+
+void LittleFS_show_fs_info(void)
 {
     size_t total = 0;
     size_t used = 0;
@@ -241,75 +198,4 @@ static void show_fs_info(void)
 
     ESP_LOGI(TAG, "LittleFS usage: used=%u / total=%u bytes (free=%u bytes)",
              (unsigned)used, (unsigned)total, (unsigned)(total - used));
-}
-
-/**
- * @brief Application main entry point
- * 
- */
-void app_main(void)
-{
-    ESP_LOGI(TAG, "Booting LittleFS demo...");
-
-    // Mount LittleFS
-    esp_err_t ret = littlefs_mount();
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Mount failed, stopping demo.");
-        return;
-    }
-
-    // Prepare directories and files
-    const char *base_dir = "/littlefs";
-    const char *cfg_dir  = "/littlefs/config";
-    const char *log_dir  = "/littlefs/logs";
-
-    // Ensure directories exist
-    ensure_dir(cfg_dir);
-    ensure_dir(log_dir);
-
-    // File paths
-    const char *cfg_path = "/littlefs/config/device.cfg";
-    const char *log_path = "/littlefs/logs/boot.log";
-
-    // Write initial config file
-    write_text_file(cfg_path,
-                    "device_id=ESP32S3\n"
-                    "mode=demo\n"
-                    "wifi_autostart=false\n");
-
-    // Append to config file
-    append_text_file(cfg_path, "log_enabled=true\n");
-
-    // Write initial log file
-    append_text_file(log_path, "boot=ok\n");
-
-    // Read back files
-    read_text_file(cfg_path);
-
-    // List directories
-    list_dir(base_dir);
-    list_dir(cfg_dir);
-    list_dir(log_dir);
-
-    // Show filesystem usage
-    show_fs_info();
-
-    // Keep running to allow monitor viewing; periodically append to log
-    for (int i = 0; i < 5; i++) {
-        char buf[64];
-        snprintf(buf, sizeof(buf), "tick=%d\n", i);
-        append_text_file(log_path, buf);
-        vTaskDelay(pdMS_TO_TICKS(1000));
-    }
-
-    // Final read of log file
-    read_text_file(log_path);
-    
-    // Final filesystem usage
-    show_fs_info();
-
-    // Optional unmount (usually not required in embedded apps)
-    littlefs_unmount();
-
-    ESP_LOGI(TAG, "Demo complete.");
 }
