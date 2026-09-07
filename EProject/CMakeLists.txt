@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.16.0)
 
 # To make sure PIO libraries downloded in the .ini with lib_deps are accessible to espidf
+# Acessible as a component anywhere, so long as listed in requires for component registration
 get_filename_component(configName "${CMAKE_BINARY_DIR}" NAME)
 list(APPEND EXTRA_COMPONENT_DIRS "${CMAKE_SOURCE_DIR}/.pio/libdeps/${configName}/esp_littlefs")
 

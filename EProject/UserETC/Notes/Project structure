@@ -1,0 +1,16 @@
+Native ESP-IDF Structure                   PlatformIO ESP-IDF Structure
+========================                   ============================
+my_native_project/                         my_pio_project/
+├── CMakeLists.txt                         ├── platformio.ini         <-- [PIO Only]
+├── sdkconfig                              ├── CMakeLists.txt
+├── main/             <-- [Named "main"]   ├── sdkconfig
+│   ├── CMakeLists.txt                     ├── src/                   <-- [Named "src"]
+│   └── main.c                             │   ├── CMakeLists.txt
+├── components/                            │   └── main.c
+│   └── my_sensor/                         ├── include/               <-- [PIO Only]
+│       ├── CMakeLists.txt                 ├── components/
+│       ├── my_sensor.c                    │   └── my_sensor/
+│       └── include/my_sensor.h            │       ├── CMakeLists.txt
+└── build/            <-- [Native build]   │       ├── my_sensor.c
+                                           │       └── include/my_sensor.h
+                                           └── .pio/                  <-- [PIO build]
