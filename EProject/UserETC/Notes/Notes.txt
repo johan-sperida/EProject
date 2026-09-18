@@ -10,3 +10,6 @@ littlefs	Data	0x110000	512 KB	Filesystem for web files, configuration files, log
 Changes in toe .ini file and menucongfig get saved to sdkconfig file
 
 Can manually add stuff to the file system by building and uploading file system
+
+
+Seems that I have to hit PIO run twice before things really get going (errors on first run)
