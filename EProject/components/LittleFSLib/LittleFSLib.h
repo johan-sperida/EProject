@@ -59,7 +59,7 @@ void LittleFS_append_text_file(const char *path, const char *text);
  * 
  * @param path Path to text file to read 
  */
-void LittleFS_read_text_file(const char *path);
+void LittleFS_load_text_file(const char *path, char* buf);
 
 /**
  * @brief List directory contents   

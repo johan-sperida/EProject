@@ -17,7 +17,7 @@
 #include "esp_netif.h"
 #include "esp_http_server.h"
 #include "esp_mac.h"
-#include "sdkconfig.h"
+#include "LittleFSLib.h"
 
 // Replace with your Access Point (AP) SSID and Password
 #define MY_ESP_WIFI_SSID      "ESP32_AP"
@@ -29,22 +29,7 @@ static const char *TAG = "web_server_ap";
 static esp_netif_t *ap_netif;
 
 // HTML web page to serve 
-// Save and read this in littlefs???? TODO
-static const char *html_page; 
-
-// R"raw(
-// <!DOCTYPE html>
-// <html>
-// <head>
-//     <title>ESP-IDF: ESP32 Web Server</title>
-//     <meta name="viewport" content="width=device-width, initial-scale=1">
-// </head>
-// <body>
-//     <h1>ESP-IDF: ESP32 Web Server</h1>
-//     <p>Hello from ESP32!</p>
-// </body>
-// </html>
-// )raw";
+static char html_page[1000]; 
 
 void sleep_seconds(float seconds){
     vTaskDelay(pdMS_TO_TICKS(seconds*1000.0));
@@ -119,8 +104,18 @@ void app_main(void)
 {
     ESP_LOGI(TAG, "Starting... Free heap: %d bytes", esp_get_free_heap_size());
 
+
+    // Mount LittleFS
+    ESP_LOGI(TAG, "Booting LittleFS...");
+    esp_err_t ret = LittleFS_mount();
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Mount failed, stopping demo.");
+        return;
+    }
+
     // Initialize NVS
-    esp_err_t ret = nvs_flash_init();
+    ESP_LOGI(TAG, "Initializing NVS...");
+    ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         ESP_ERROR_CHECK(nvs_flash_erase());
         ret = nvs_flash_init();
@@ -178,14 +173,12 @@ void app_main(void)
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
 
+    //read web server code from LittleFS file
+    LittleFS_load_text_file("/littlefs/NetTest.txt", html_page);
     // Start web server in AP mode
     httpd_handle_t server = start_web_server();
     if (server) {
         ESP_LOGI(TAG, "Web server initialized. Connect to the Access Point (AP) now!");
     }
 
-    while (1){
-        sleep_seconds(0.5);
-        ESP_LOGI(TAG, "loop continuing");
-    }
 }

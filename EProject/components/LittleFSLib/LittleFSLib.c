@@ -113,7 +113,7 @@ void LittleFS_append_text_file(const char *path, const char *text)
 }
 
 
-void LittleFS_read_text_file(const char *path)
+void LittleFS_load_text_file(const char *path, char* dest)
 {
     // Open file for reading
     FILE *f = fopen(path, "r");
@@ -124,11 +124,12 @@ void LittleFS_read_text_file(const char *path)
 
     ESP_LOGI(TAG, "---- Begin file: %s ----", path);
 
+    char buf[100];
     // Read and log lines
-    char line[128];
-    while (fgets(line, sizeof(line), f) != NULL) {
+    while (fgets(buf, sizeof(buf), f) != NULL) {
         // Lines already include '\n' typically
-        ESP_LOGI(TAG, "%s", line);
+        strncat(dest, buf, strlen(buf));
+        ESP_LOGI(TAG, "%s", buf);
     }
 
     // Close file

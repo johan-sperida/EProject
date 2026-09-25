@@ -1,0 +1,2 @@
+- Make function for getting chars out of file into a pointer
+- Feed that into webserver
