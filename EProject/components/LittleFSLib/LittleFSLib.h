@@ -55,11 +55,11 @@ void LittleFS_write_text_file(const char *path, const char *text);
 void LittleFS_append_text_file(const char *path, const char *text);
 
 /**
- * @brief Read and log contents of a text file 
+ * @brief Read and load contents of a text file into a buffer
  * 
  * @param path Path to text file to read 
  */
-void LittleFS_load_text_file(const char *path, char* buf);
+void LittleFS_load_text_file(const char *path, char* buf, size_t dest_size);
 
 /**
  * @brief List directory contents   
