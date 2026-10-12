@@ -11,6 +11,9 @@
 - Move SERVER into a library/component file
 
 ctrl alt k for bookmark 
+ctrl alt l for next
+ctrl alt j for prev
+
 
 - Maybe allow for showing off the index in another path
 - Add back the reading function for files in LittleFSLib
