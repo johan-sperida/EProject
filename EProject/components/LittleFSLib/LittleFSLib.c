@@ -130,6 +130,8 @@ void LittleFS_load_text_file(const char *path, char* dest, size_t dest_size)
     while (fgets(buf, sizeof(buf), f) != NULL) {
         size_t len = strlen(buf);
         if (used + len + 1 > dest_size) {
+            ESP_LOGE(TAG, "Destination buffer overflow when loading file!");
+            dest[used] = '\0';
             break;
         }
         memcpy(dest + used, buf, len);
