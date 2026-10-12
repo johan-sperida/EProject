@@ -1,2 +1,17 @@
-- Make function for getting chars out of file into a pointer
-- Feed that into webserver
+- Make function for getting chars out of file into a pointer DONE
+- Feed that into webserver DONE
+
+
+- Get new file name max
+    - Maybe find out how to get values from sdkconfig DONE
+
+- Register the POST handler DONE!!!!
+
+
+- Move SERVER into a library/component file
+
+ctrl alt k for bookmark 
+
+- Maybe allow for showing off the index in another path
+- Add back the reading function for files in LittleFSLib
+- Honestly maybe just copy the download and load functions too!!!
