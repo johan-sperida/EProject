@@ -13,3 +13,7 @@ Can manually add stuff to the file system by building and uploading file system
 
 
 Seems that I have to hit PIO run twice before things really get going (errors on first run)
+
+When adding component:
+- compoenent CMAKEList
+- Src CMAKEList
