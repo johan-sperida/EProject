@@ -31,8 +31,8 @@ static const char *TAG = "web_server_ap";
 static esp_netif_t *ap_netif;
 
 // HTML web page to serve 
-static const char* HTML_PAGE_PATH = "/littlefs/UploadTest.txt";
-static const char* HTML_PAGE_NAME = "UploadTest.txt";
+static const char* HTML_PAGE_PATH = "/littlefs/UploadTest.html";
+static const char* HTML_PAGE_NAME = "UploadTest.html";
 
 
 
@@ -40,7 +40,7 @@ static const char* HTML_PAGE_NAME = "UploadTest.txt";
 #define FILE_PATH_MAX (CONFIG_LITTLEFS_OBJ_NAME_LEN)
 
 /* Max size of an individual file. Make sure this
- * value is same as that set in upload_script.html */
+ * value is same as that set in UploadTest.html */
 #define MAX_FILE_SIZE   (200*1024) // 200 KB
 #define MAX_FILE_SIZE_STR "200KB"
 
@@ -273,7 +273,34 @@ static esp_err_t send_file_in_chunks (httpd_req_t *req, const char* filepath, co
     ESP_LOGI(TAG, "File sending complete");
     return ESP_OK;
 }
-#ifdef false
+
+static void send_fs_usage_chunk(httpd_req_t *req)
+{
+    size_t total = 0;
+    size_t used = 0;
+
+    char script[256];
+
+    if (esp_littlefs_info("littlefs", &total, &used) != ESP_OK) {
+        httpd_resp_sendstr_chunk(req,
+            "<script>document.addEventListener('DOMContentLoaded', function(){"
+            "var el = document.getElementById('fs-usage');"
+            "if (el) el.textContent = ' (usage unavailable)';"
+            "});</script>");
+        return;
+    }
+
+    snprintf(script, sizeof(script),
+             "<script>document.addEventListener('DOMContentLoaded', function(){"
+             "var el = document.getElementById('fs-usage');"
+             "if (el) el.textContent = ' (used %u / total %u bytes)';"
+             "});</script>",
+             (unsigned)used, (unsigned)total);
+
+    httpd_resp_sendstr_chunk(req, script);
+}
+
+//Contain upload script and list of files with delete capabilities
 static esp_err_t http_resp_dir_html(httpd_req_t *req, const char *dirpath)
 {
     char entrypath[FILE_PATH_MAX];
@@ -282,6 +309,9 @@ static esp_err_t http_resp_dir_html(httpd_req_t *req, const char *dirpath)
 
     struct dirent *entry;
     struct stat entry_stat;
+
+    ESP_LOGI(TAG, "Opening dir %s", dirpath);
+    LittleFS_list_dir(dirpath);
 
     DIR *dir = opendir(dirpath);
     const size_t dirpath_len = strlen(dirpath);
@@ -300,7 +330,10 @@ static esp_err_t http_resp_dir_html(httpd_req_t *req, const char *dirpath)
     httpd_resp_sendstr_chunk(req, "<!DOCTYPE html><html><body>");
 
     /* Add file upload form and script which on execution sends a POST request to /upload */
-   
+    send_file_in_chunks(req, HTML_PAGE_PATH, HTML_PAGE_NAME);
+
+    /* Append a small script that updates the fs usage text next to the heading */
+    send_fs_usage_chunk(req);
 
     /* Send file-list table definition and column labels */
     httpd_resp_sendstr_chunk(req,
@@ -353,9 +386,7 @@ static esp_err_t http_resp_dir_html(httpd_req_t *req, const char *dirpath)
     httpd_resp_sendstr_chunk(req, NULL);
     return ESP_OK;
 }
-#endif
 
-#ifdef false
 /* Handler to download a file kept on the server */
 static esp_err_t download_get_handler(httpd_req_t *req)
 {
@@ -372,7 +403,6 @@ static esp_err_t download_get_handler(httpd_req_t *req)
     }
 
     /* If name has trailing '/', respond with directory contents */
-    //Root handler
     if (filename[strlen(filename) - 1] == '/') {
         return http_resp_dir_html(req, filepath);
     }
@@ -382,7 +412,7 @@ static esp_err_t download_get_handler(httpd_req_t *req)
         /* If file not present on LittleFS check if URI
          * corresponds to one of the hardcoded paths */
 
-        //Not in use rn
+        //Not in use rn <-------
 
         // if (strcmp(filename, "/index.html") == 0) {
         //     return index_html_get_handler(req);
@@ -408,22 +438,48 @@ static esp_err_t download_get_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
-#endif 
-// HTTP GET handler for root "/"
-//runs every time a client enters the ESP IP address in browser
-//they access the root folder or smth
-static esp_err_t root_get_handler(httpd_req_t *req)
+
+/* Handler to delete a file from the server */
+static esp_err_t delete_post_handler(httpd_req_t *req)
 {
-    /* Send HTML file header */
-    httpd_resp_sendstr_chunk(req, "<!DOCTYPE html><html><body>");
-    
-    send_file_in_chunks(req,HTML_PAGE_PATH,HTML_PAGE_NAME);
+    char filepath[FILE_PATH_MAX];
+    struct stat file_stat;
 
-    /* Send remaining chunk of HTML file to complete it */
-    httpd_resp_sendstr_chunk(req, "</body></html>");
+    /* Skip leading "/delete" from URI to get filename */
+    /* Note sizeof() counts NULL termination hence the -1 */
+    const char *filename = get_path_from_uri(filepath, ((struct file_server_data *)req->user_ctx)->base_path,
+                                             req->uri  + sizeof("/delete") - 1, sizeof(filepath));
+    if (!filename) {
+        /* Respond with 500 Internal Server Error */
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Filename too long");
+        return ESP_FAIL;
+    }
 
-    /* Send empty chunk to signal HTTP response completion */
-    httpd_resp_sendstr_chunk(req, NULL);
+    /* Filename cannot have a trailing '/' */
+    if (filename[strlen(filename) - 1] == '/') {
+        ESP_LOGE(TAG, "Invalid filename : %s", filename);
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Invalid filename");
+        return ESP_FAIL;
+    }
+
+    if (stat(filepath, &file_stat) == -1) {
+        ESP_LOGE(TAG, "File does not exist : %s", filename);
+        /* Respond with 400 Bad Request */
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "File does not exist");
+        return ESP_FAIL;
+    }
+
+    ESP_LOGI(TAG, "Deleting file : %s", filename);
+    /* Delete file */
+    unlink(filepath);
+
+    /* Redirect onto root to see the updated file list */
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/");
+#ifdef CONFIG_EXAMPLE_HTTPD_CONN_CLOSE_HEADER
+    httpd_resp_set_hdr(req, "Connection", "close");
+#endif
+    httpd_resp_sendstr(req, "File deleted successfully");
     return ESP_OK;
 }
 
@@ -467,9 +523,9 @@ static httpd_handle_t start_web_server(const char *base_path)
 
         /* URI handler for getting uploaded files */
     httpd_uri_t file_download = {
-        .uri       = "/",  // Match all URIs of type /path/to/file
+        .uri       = "/*",  // Match all URIs of type /path/to/file
         .method    = HTTP_GET,
-        .handler   = root_get_handler,
+        .handler   = download_get_handler,
         .user_ctx  = server_data    // Pass server data as context
     };
     httpd_register_uri_handler(server, &file_download);
@@ -483,14 +539,14 @@ static httpd_handle_t start_web_server(const char *base_path)
     };
     httpd_register_uri_handler(server, &file_upload);
 
-    // /* URI handler for deleting files from server */
-    // httpd_uri_t file_delete = {
-    //     .uri       = "/delete/*",   // Match all URIs of type /delete/path/to/file
-    //     .method    = HTTP_POST,
-    //     .handler   = delete_post_handler,
-    //     .user_ctx  = server_data    // Pass server data as context
-    // };
-    // httpd_register_uri_handler(server, &file_delete);
+    /* URI handler for deleting files from server */
+    httpd_uri_t file_delete = {
+        .uri       = "/delete/*",   // Match all URIs of type /delete/path/to/file
+        .method    = HTTP_POST,
+        .handler   = delete_post_handler,
+        .user_ctx  = server_data    // Pass server data as context
+    };
+    httpd_register_uri_handler(server, &file_delete);
 
 
     return server;
